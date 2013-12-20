@@ -1,0 +1,58 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2012
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NeuralNet", "NeuralNet\NeuralNet.vcxproj", "{53800070-F32E-4484-9EE0-1247F08A6E5A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ParaSum", "ParaSum\ParaSum.vcxproj", "{F67A01BD-9E30-4C1F-874A-3383744E8CD3}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SumTest", "SumTest\SumTest.vcxproj", "{F4754091-1FF2-4030-BFE1-35492EFEF6BD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Mixed Platforms = Debug|Mixed Platforms
+		Debug|Win32 = Debug|Win32
+		Debug|x64 = Debug|x64
+		Release|Mixed Platforms = Release|Mixed Platforms
+		Release|Win32 = Release|Win32
+		Release|x64 = Release|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Debug|Win32.ActiveCfg = Debug|Win32
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Debug|Win32.Build.0 = Debug|Win32
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Debug|x64.ActiveCfg = Debug|x64
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Debug|x64.Build.0 = Debug|x64
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Release|Win32.ActiveCfg = Release|Win32
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Release|Win32.Build.0 = Release|Win32
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Release|x64.ActiveCfg = Release|x64
+		{53800070-F32E-4484-9EE0-1247F08A6E5A}.Release|x64.Build.0 = Release|x64
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Debug|Win32.Build.0 = Debug|Win32
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Debug|x64.ActiveCfg = Debug|x64
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Debug|x64.Build.0 = Debug|x64
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Release|Win32.ActiveCfg = Release|Win32
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Release|Win32.Build.0 = Release|Win32
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Release|x64.ActiveCfg = Release|x64
+		{F67A01BD-9E30-4C1F-874A-3383744E8CD3}.Release|x64.Build.0 = Release|x64
+		{F4754091-1FF2-4030-BFE1-35492EFEF6BD}.Debug|Mixed Platforms.ActiveCfg = Debug|Win32
+		{F4754091-1FF2-4030-BFE1-35492EFEF6BD}.Debug|Mixed Platforms.Build.0 = Debug|Win32
+		{F4754091-1FF2-4030-BFE1-35492EFEF6BD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F4754091-1FF2-4030-BFE1-35492EFEF6BD}.Debug|Win32.Build.0 = Debug|Win32
+		{F4754091-1FF2-4030-BFE1-35492EFEF6BD}.Debug|x64.ActiveCfg = Debug|Win32
+		{F4754091-1FF2-4030-BFE1-35492EFEF6BD}.Release|Mixed Platforms.ActiveCfg = Release|Win32
+		{F4754091-1FF2-4030-BFE1-35492EFEF6BD}.Release|Mixed Platforms.Build.0 = Release|Win32
+		{F4754091-1FF2-4030-BFE1-35492EFEF6BD}.Release|Win32.ActiveCfg = Release|Win32
+		{F4754091-1FF2-4030-BFE1-35492EFEF6BD}.Release|Win32.Build.0 = Release|Win32
+		{F4754091-1FF2-4030-BFE1-35492EFEF6BD}.Release|x64.ActiveCfg = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
