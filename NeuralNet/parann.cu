@@ -52,7 +52,7 @@ void setupNN2(NN2* nn2);
 void randomizeWeights(NN2* nn2);
 int trainWithGPU(NN2* nn2, unsigned char *trainingInput, unsigned char *trainingOutput, int epoch);
 bool cudaCheck(cudaError_t, char*);
-
+void printWeights(float* weightArray, int width, int height);
 
 
 int main() {
@@ -82,6 +82,9 @@ int main() {
 	//Setup neural network
 	NN2 nn2;
 	setupNN2(&nn2);
+
+	cout << "Initial i2h weights\n";
+	printWeights(nn2.weight_i2h, nn2.inputCount, nn2.hiddenCount);
 
 	//Iterasyon dizileri
 	unsigned char inputSet[INPUT_COUNT + 1];
@@ -224,7 +227,14 @@ int trainWithGPU(NN2* nn2, unsigned char *trainingInput, unsigned char *training
 
 }
 
-
+void printWeights(float* weightArray, int width, int height) {
+	for(int y=0; y < height; y++) {
+		for(int x=0; x < width; x++) {
+			printf("%f\t",weightArray[width * y + x]);
+		}
+		cout << "\n";
+	}
+}
 
 void setupNN2(NN2* nn2) {
 
@@ -258,13 +268,13 @@ void randomizeWeights(NN2* nn2) {
 	for(int i = 0; i < nn2->inputCount; i++) {
 		for(int h = 0; h < nn2->hiddenCount; h++) {
 			// for accessing second layer: (nn2->inputCount * nn2->hiddenCount * layernum) + nn2->inputCount * h + i
-			nn2->weight_i2h[nn2->inputCount * h + i] = (RANDOM_float * 4) - 2;
+			nn2->weight_i2h[nn2->inputCount * h + i] = (RANDOM_FLOAT * 4) - 2;
 		}
 	}
 
 	for(int h = 0; h < nn2->hiddenCount; h++) {
 		for(int o = 0; o < nn2->outputCount; o++) {
-			nn2->weight_h2o[nn2->hiddenCount * o + h] = (RANDOM_float * 4) - 2;
+			nn2->weight_h2o[nn2->hiddenCount * o + h] = (RANDOM_FLOAT * 4) - 2;
 		}
 	}
 

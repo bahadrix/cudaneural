@@ -12,7 +12,9 @@
 #define TRAIN_SIZE 100
 #define ALPHA 0.9
 #define TEST_OPERATOR ^
-#define RANDOM_float ((float)rand()/RAND_MAX)
+//disable randomizing for testing
+#define RANDOM_FLOAT 0.5 
+//#define RANDOM_FLOAT ((float)rand()/RAND_MAX)
 #define LINE "\n-------------------------------------------------------------------------------\n"
 
 using namespace std;
