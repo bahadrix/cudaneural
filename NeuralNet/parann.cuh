@@ -13,7 +13,7 @@
 #define ALPHA 0.9
 #define TEST_OPERATOR ^
 //disable randomizing for testing
-#define RANDOM_FLOAT 0.5 
+#define RANDOM_FLOAT 0.8 
 //#define RANDOM_FLOAT ((float)rand()/RAND_MAX)
 #define LINE "\n-------------------------------------------------------------------------------\n"
 

@@ -1,4 +1,4 @@
-#include "cuda_runtime.h"
+﻿#include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 #include <iostream>
 #include <time.h>
@@ -24,33 +24,26 @@ __global__ void train(
 
 }
 
+__global__ void forwardLayer(
+	float *sourceLayer, float *targetLayer, // node values
+	float *interWeights, // weight infos
+	unsigned int iteration) { //set iteration for other than real inputlayer
 
+	// current inputNodeID	: threadIdx.x
+	// current hiddenNodeID	: blockIdx.x
 
-__global__ void f1(float *input, float *hidden, float *output, // node values
-	unsigned int inputSize, unsigned int hiddenSize, unsigned int outputSize,  // node counts
-	float *weights_i2h, float *weights_h2o,  // weight infos
-	unsigned char *trainingInput, unsigned char *trainingOutput,
-	unsigned int epochCount, unsigned int iteration) {
-
-	int id = blockDim.x  * blockIdx.x + threadIdx.x;
+	int weightID = blockDim.x  * blockIdx.x + threadIdx.x;
 	
+	float value = sourceLayer[iteration * blockDim.x + threadIdx.x] * interWeights[weightID];
 
-	int from = id / hiddenSize;
-	int to = id % hiddenSize;
-
-	
-	
-	
-	float value = trainingInput[iteration * inputSize + from] * weights_i2h[inputSize * to + from];
-
-	atomicAdd(&hidden[to], value);
+	atomicAdd(&targetLayer[blockIdx.x], value);
 
 	//input[from] = trainingInput
 }
 
 void setupNN2(NN2* nn2);
 void randomizeWeights(NN2* nn2);
-int trainWithGPU(NN2* nn2, unsigned char *trainingInput, unsigned char *trainingOutput, int epoch);
+int trainWithGPU(NN2* nn2, float *trainingInput, float *trainingOutput, int epoch);
 bool cudaCheck(cudaError_t, char*);
 void printWeights(float* weightArray, int width, int height);
 
@@ -63,18 +56,18 @@ int main() {
 	srand(time(NULL));
 
 	//create  training dataset
-	unsigned char inputArray[TRAIN_SIZE * (INPUT_COUNT + 1)];
-	unsigned char outputArray[TRAIN_SIZE * (OUTPUT_COUNT)];
+	float inputArray[TRAIN_SIZE * (INPUT_COUNT + 1)];
+	float outputArray[TRAIN_SIZE * (OUTPUT_COUNT)];
 
 	
 
 	for(int t = 0; t < TRAIN_SIZE; t++) {
 		
-		inputArray[INPUT_COUNT*t + 0] = rand() % 2;			
-		inputArray[INPUT_COUNT*t + 1] = rand() % 2;			
+		inputArray[INPUT_COUNT*t + 0] = 1; //rand() % 2;			
+		inputArray[INPUT_COUNT*t + 1] = 0; //rand() % 2;			
 		inputArray[INPUT_COUNT*t + 2] = 1; //bias
 		
-		outputArray[t] = inputArray[INPUT_COUNT*t + 0] TEST_OPERATOR inputArray[INPUT_COUNT*t + 1];
+		outputArray[t] = (int)inputArray[INPUT_COUNT*t + 0] TEST_OPERATOR (int)inputArray[INPUT_COUNT*t + 1];
 		
 	}
 	cout << "OK\n" << "Setting up neural network [" << INPUT_COUNT << "i, " << HIDDEN_COUNT << "h]....";
@@ -82,13 +75,17 @@ int main() {
 	//Setup neural network
 	NN2 nn2;
 	setupNN2(&nn2);
+	//cout << "\ni2h Weights:\n ";
+	//printWeights(nn2.weight_i2h, nn2.inputCount, nn2.hiddenCount);
+	printWeights(nn2.weight_h2o, nn2.hiddenCount, nn2.outputCount);
 
-	cout << "Initial i2h weights\n";
-	printWeights(nn2.weight_i2h, nn2.inputCount, nn2.hiddenCount);
+	cout << "\nHidden layer: ";
+	for(int i=0; i < nn2.hiddenCount; i++) 
+		printf("%f\t", nn2.hidden[i]);
 
 	//Iterasyon dizileri
-	unsigned char inputSet[INPUT_COUNT + 1];
-	unsigned char outputSet[OUTPUT_COUNT];
+	float inputSet[INPUT_COUNT + 1];
+	float outputSet[OUTPUT_COUNT];
 	
 	cout << "OK\n";
 	
@@ -99,17 +96,25 @@ int main() {
 	cout << "Initializing device..";
 	errorExist |= cudaCheck(cudaSetDevice(0),"");
 
-	
+	clock_t start = clock();
+	cout << LINE << "TRAINING PHASE" << LINE;
+	cout << "Training started [" << MAX_EPOCH << " epoch]...";
 
 	trainWithGPU(&nn2,inputArray, outputArray, MAX_EPOCH);
+
+	cout << "\nHidden layer: ";
+	for(int i=0; i < nn2.hiddenCount; i++) 
+		printf("%f\t", nn2.hidden[i]);
+
+	cout << "\Out layer: ";
+	for(int i=0; i < nn2.outputCount; i++) 
+		printf("%f\t", nn2.output[i]);
 
 
 	errorExist |= cudaCheck(cudaDeviceReset(),"Device reset");
 
 
-	clock_t start = clock();
-	cout << LINE << "EXECUTION PHASE" << LINE;
-	cout << "Training started [" << MAX_EPOCH << " epoch]...";
+	
 	if(!errorExist) {
 		cout << "\n Completed with error";
 	}
@@ -120,8 +125,8 @@ int main() {
 
 
 
-int trainWithGPU(NN2* nn2, unsigned char *trainingInput, unsigned char *trainingOutput, int epoch) {
-	unsigned char *d_trainingInput, *d_trainingOutput;
+int trainWithGPU(NN2* nn2, float *trainingInput, float *trainingOutput, int epoch) {
+	float *d_trainingInput, *d_trainingOutput;
 	float *d_inputArray, *d_hiddenArray, *d_outputArray;
 	float *d_weight_i2h, *d_weight_h2o;
 	bool errStat = 1;
@@ -187,11 +192,11 @@ int trainWithGPU(NN2* nn2, unsigned char *trainingInput, unsigned char *training
 	cout << "OK\n" << "Transferring training data..";
 	
 	errStat |= cudaCheck( // Copy output
-		cudaMemcpy(d_trainingInput,trainingInput, TRAIN_SIZE * nn2->inputCount * sizeof(unsigned char), cudaMemcpyHostToDevice),
+		cudaMemcpy(d_trainingInput,trainingInput, TRAIN_SIZE * nn2->inputCount * sizeof(float), cudaMemcpyHostToDevice),
 		"Memory allocate error: copying input");
 	
 	errStat |= cudaCheck( // Copy output
-		cudaMemcpy(d_trainingOutput,trainingOutput, TRAIN_SIZE * nn2->outputCount * sizeof(unsigned char), cudaMemcpyHostToDevice),
+		cudaMemcpy(d_trainingOutput,trainingOutput, TRAIN_SIZE * nn2->outputCount * sizeof(float), cudaMemcpyHostToDevice),
 		"Memory allocate error: copying output");
 	
 	cout << "OK\n";
@@ -205,15 +210,29 @@ int trainWithGPU(NN2* nn2, unsigned char *trainingInput, unsigned char *training
 	int h2oLinkCount = nn2->hiddenCount * nn2->outputCount;
 	int it = 0;
 
-	f1<<<totalWork/BLOCK_SIZE, BLOCK_SIZE>>>(
-		d_inputArray, d_hiddenArray, d_outputArray,
-		nn2->inputCount, nn2->hiddenCount, nn2->outputCount,
-		d_weight_i2h, d_weight_h2o,
-		d_trainingInput, d_trainingOutput,
-		MAX_EPOCH, it);
+	forwardLayer<<<nn2->hiddenCount, nn2->inputCount>>>(
+		d_trainingInput,
+		d_hiddenArray,
+		d_weight_i2h, 
+		it);
 
 	errStat |= cudaCheck(cudaGetLastError(), "Kernel execution error");
 	errStat |= cudaCheck(cudaDeviceSynchronize(), "Device synchronize error");
+
+
+	forwardLayer<<<nn2->outputCount,  nn2->hiddenCount>>>(
+		d_hiddenArray,//source layer
+		d_outputArray, // target layer
+		d_weight_h2o, // interlayer weights
+		0); // iteration is always zero for hidden layers
+
+	errStat |= cudaCheck( // Copy hidden
+		cudaMemcpy(nn2->hidden, d_hiddenArray, nn2->hiddenCount * sizeof(float), cudaMemcpyDeviceToHost),
+		"Memory allocate error: copying hidden");
+	
+	errStat |= cudaCheck( // Copy output
+		cudaMemcpy(nn2->output, d_outputArray, nn2->outputCount * sizeof(float), cudaMemcpyDeviceToHost),
+		"Memory allocate error: copying input to host");
 
 	cudaFree(d_inputArray);
 	cudaFree(d_hiddenArray);
@@ -243,11 +262,11 @@ void setupNN2(NN2* nn2) {
 	nn2->outputCount = OUTPUT_COUNT;
 
 	//Allocate the memory ***
-	nn2->input = (float*)malloc(nn2->inputCount * sizeof(float)); // +1 for bias
-	nn2->hidden = (float*)malloc(nn2->hiddenCount * sizeof(float));
-	nn2->output = (float*)malloc(nn2->outputCount * sizeof(float));
+	nn2->input = (float*)calloc(nn2->inputCount, sizeof(float)); // +1 for bias
+	nn2->hidden = (float*)calloc(nn2->hiddenCount, sizeof(float));
+	nn2->output = (float*)calloc(nn2->outputCount, sizeof(float));
 
-	// 20 * 8 = 160 Byte'� bir arada veremeyecekse ne baslarim oyle bellege
+	// 20 * 8 = 160 Byte'ý bir arada veremeyecekse ne baslarim oyle bellege
 	nn2->weight_i2h = (float*)calloc(2 * nn2->hiddenCount * nn2->inputCount, sizeof(float));
 	nn2->weight_h2o = (float*)calloc(2 * nn2->outputCount * nn2->hiddenCount, sizeof(float));
 	
@@ -268,13 +287,14 @@ void randomizeWeights(NN2* nn2) {
 	for(int i = 0; i < nn2->inputCount; i++) {
 		for(int h = 0; h < nn2->hiddenCount; h++) {
 			// for accessing second layer: (nn2->inputCount * nn2->hiddenCount * layernum) + nn2->inputCount * h + i
-			nn2->weight_i2h[nn2->inputCount * h + i] = (RANDOM_FLOAT * 4) - 2;
+			nn2->weight_i2h[nn2->inputCount * h + i] = (RANDOM_FLOAT * 4.0) - 2;
+
 		}
 	}
 
 	for(int h = 0; h < nn2->hiddenCount; h++) {
 		for(int o = 0; o < nn2->outputCount; o++) {
-			nn2->weight_h2o[nn2->hiddenCount * o + h] = (RANDOM_FLOAT * 4) - 2;
+			nn2->weight_h2o[nn2->hiddenCount * o + h] = (RANDOM_FLOAT * 4.0) - 2;
 		}
 	}
 
