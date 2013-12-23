@@ -15,6 +15,11 @@ __device__ float d_sigmoid(float x) {
 	return x * (1 - x);
 }
 
+__device__ float delta(float value, float errsum) {
+
+	return sigmoid(value) * errsum;
+}
+
 __global__ void train(
 	float *input, float *hidden, float *output, // node values
 	unsigned int inputSize, unsigned int hiddenSize, unsigned int outputSize,  // node counts
@@ -29,16 +34,94 @@ __global__ void forwardLayer(
 	float *interWeights, // weight infos
 	unsigned int iteration) { //set iteration for other than real inputlayer
 
-	// current inputNodeID	: threadIdx.x
-	// current hiddenNodeID	: blockIdx.x
+	// current sourceNodeID	: threadIdx.x
+	// current targetNodeID	: blockIdx.x
+
+	__shared__ float sum;
+
+	if(threadIdx.x == 0) {//initialize sum
+		sum = 0;
+	}
+
+	__syncthreads();
 
 	int weightID = blockDim.x  * blockIdx.x + threadIdx.x;
 	
 	float value = sourceLayer[iteration * blockDim.x + threadIdx.x] * interWeights[weightID];
 
-	atomicAdd(&targetLayer[blockIdx.x], value);
+	atomicAdd(&sum, value);
 
+	__syncthreads();
+
+	if(threadIdx.x == 0) {
+		atomicAdd(&targetLayer[blockIdx.x], sigmoid(sum));
+	}
+
+	//&targetLayer[blockIdx.x]
 	//input[from] = trainingInput
+}
+
+__global__ void initBP(
+	float *outputLayer, float *truthLayer,
+	float *weights_h2o, unsigned int iteration
+	) {
+
+		
+		outputLayer[blockDim.x + threadIdx.x] = 
+			delta(
+				outputLayer[threadIdx.x],
+				truthLayer[blockDim.x * iteration + threadIdx.x] - outputLayer[threadIdx.x]
+			);
+
+}
+
+// grouped by hidden node blocks
+__global__ void BP_o2h(
+	float *hiddenLayer, float *outputLayer, // node values
+	float *interWeights, // weight infos
+	unsigned int iteration) { //mode: 0 for output, not zero for others
+
+	// current hidden node	: blockIdx.x
+	// current output node	: threadIdx.x
+	// outputcount			: blockDim.x
+	// hiddenCount			: gridDim.x
+
+
+	__shared__ float sum;
+
+	if(threadIdx.x == 0) {
+		sum = 0;
+	}
+	__syncthreads();
+	unsigned int w_coord = gridDim.x * threadIdx.x + blockIdx.x;
+	float weight = interWeights[w_coord];
+	float delta = outputLayer[blockIdx.x + threadIdx.x];
+	
+	atomicAdd(&sum, weight * delta);
+
+	__syncthreads();
+
+	if(threadIdx.x == 0) {
+
+		hiddenLayer[gridDim.x + blockIdx.x] = sum;
+
+	}
+
+	__syncthreads();
+	
+	float *lastDelta = &interWeights[gridDim.x * blockDim.x + w_coord];
+	float newDelta = *lastDelta * ALPHA + (delta * sum) * (1- ALPHA);
+	interWeights[w_coord] += LEARNING_RATE * newDelta;
+	*lastDelta = newDelta;
+
+	/*
+	lastDelta = &nn2->weight_h2o[h][nn2->outputCount + o];
+			newDelta = *lastDelta * ALPHA + (deltaOutputs[o] * nn2->hidden[h])*(1 - ALPHA);
+			nn2->weight_h2o[h][o] += LEARNING_RATE * newDelta;
+			*lastDelta = newDelta;
+			*/
+
+
 }
 
 void setupNN2(NN2* nn2);
@@ -136,15 +219,15 @@ int trainWithGPU(NN2* nn2, float *trainingInput, float *trainingOutput, int epoc
 
 	// ALLOCATING MEMORY
 	errStat &= cudaCheck( // Allocate input
-		cudaMalloc((void**)&d_inputArray, nn2->inputCount * sizeof(float)),
+		cudaMalloc((void**)&d_inputArray, nn2->inputCount * sizeof(float) ),
 		"Memory allocate error: input");
 
-	errStat &= cudaCheck( // Allocate hidden
-		cudaMalloc((void**)&d_hiddenArray, nn2->hiddenCount * sizeof(float)),
+	errStat &= cudaCheck( // Allocate hidden x2 for deltas
+		cudaMalloc((void**)&d_hiddenArray, nn2->hiddenCount * sizeof(float) * 2),
 		"Memory allocate error: hidden");
 
-	errStat &= cudaCheck( // Allocate output
-		cudaMalloc((void**)&d_outputArray, nn2->outputCount * sizeof(float)),
+	errStat &= cudaCheck( // Allocate output x2 for deltas
+		cudaMalloc((void**)&d_outputArray, nn2->outputCount * sizeof(float) * 2),
 		"Memory allocate error: output");
 
 	errStat &= cudaCheck( // Allocate i2h
@@ -208,23 +291,46 @@ int trainWithGPU(NN2* nn2, float *trainingInput, float *trainingOutput, int epoc
 	
 	int i2hLinkCount = nn2->inputCount * nn2->hiddenCount;
 	int h2oLinkCount = nn2->hiddenCount * nn2->outputCount;
-	int it = 0;
 
-	forwardLayer<<<nn2->hiddenCount, nn2->inputCount>>>(
-		d_trainingInput,
-		d_hiddenArray,
-		d_weight_i2h, 
-		it);
+	for(int it = 0; it < 20; it++) {
+		// 2 farward
+		forwardLayer<<<nn2->hiddenCount, nn2->inputCount>>>(
+			d_trainingInput,
+			d_hiddenArray,
+			d_weight_i2h, 
+			it);
 
-	errStat |= cudaCheck(cudaGetLastError(), "Kernel execution error");
-	errStat |= cudaCheck(cudaDeviceSynchronize(), "Device synchronize error");
+		errStat |= cudaCheck(cudaGetLastError(), "Kernel execution error");
+		errStat |= cudaCheck(cudaDeviceSynchronize(), "Device synchronize error");
 
 
-	forwardLayer<<<nn2->outputCount,  nn2->hiddenCount>>>(
-		d_hiddenArray,//source layer
-		d_outputArray, // target layer
-		d_weight_h2o, // interlayer weights
-		0); // iteration is always zero for hidden layers
+		forwardLayer<<<nn2->outputCount,  nn2->hiddenCount>>>(
+			d_hiddenArray,//source layer
+			d_outputArray, // target layer
+			d_weight_h2o, // interlayer weights
+			0); // iteration is always zero for hidden layers
+
+		errStat |= cudaCheck(cudaGetLastError(), "Kernel execution error");
+		errStat |= cudaCheck(cudaDeviceSynchronize(), "Device synchronize error");
+		// bp
+	
+		initBP<<<1, nn2->outputCount>>>(d_outputArray,d_trainingOutput,d_weight_h2o, it);
+
+		errStat |= cudaCheck(cudaGetLastError(), "Kernel execution error");
+		errStat |= cudaCheck(cudaDeviceSynchronize(), "Device synchronize error");
+
+	
+		BP_o2h<<<nn2->hiddenCount, nn2->outputCount>>>(d_hiddenArray, d_outputArray, d_weight_h2o, it);
+
+		errStat |= cudaCheck(cudaGetLastError(), "Kernel execution error");
+		errStat |= cudaCheck(cudaDeviceSynchronize(), "Device synchronize error");
+
+		BP_o2h<<<nn2->inputCount, nn2->hiddenCount>>>(d_inputArray, d_hiddenArray, d_weight_i2h, it);
+
+		errStat |= cudaCheck(cudaGetLastError(), "Kernel execution error");
+		errStat |= cudaCheck(cudaDeviceSynchronize(), "Device synchronize error");
+	
+	}
 
 	errStat |= cudaCheck( // Copy hidden
 		cudaMemcpy(nn2->hidden, d_hiddenArray, nn2->hiddenCount * sizeof(float), cudaMemcpyDeviceToHost),
